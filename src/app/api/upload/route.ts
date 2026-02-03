@@ -80,33 +80,42 @@ export async function POST(request: NextRequest) {
     const uploadResults = [];
 
     for (let i = 0; i < photos.length; i++) {
-      const base64Data = photos[i];
-      // Remove o prefixo data:image/xxx;base64, se existir
-      const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
-      const buffer = Buffer.from(base64Content, 'base64');
+      try {
+        const base64Data = photos[i];
+        // Remove o prefixo data:image/xxx;base64, se existir
+        const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Content, 'base64');
 
-      const fileName = `foto_${i + 1}_${Date.now()}.jpg`;
+        console.log(`Enviando foto ${i + 1}/${photos.length}, tamanho: ${buffer.length} bytes`);
 
-      const fileMetadata = {
-        name: fileName,
-        parents: [folderId],
-      };
+        const fileName = `foto_${i + 1}_${Date.now()}.jpg`;
 
-      const media = {
-        mimeType: 'image/jpeg',
-        body: Readable.from(buffer),
-      };
+        const fileMetadata = {
+          name: fileName,
+          parents: [folderId],
+        };
 
-      const file = await drive.files.create({
-        requestBody: fileMetadata,
-        media: media,
-        fields: 'id, name',
-      });
+        const media = {
+          mimeType: 'image/jpeg',
+          body: Readable.from(buffer),
+        };
 
-      uploadResults.push({
-        fileName: file.data.name,
-        fileId: file.data.id,
-      });
+        const file = await drive.files.create({
+          requestBody: fileMetadata,
+          media: media,
+          fields: 'id, name',
+        });
+
+        console.log(`Foto ${i + 1} enviada: ${file.data.name}`);
+
+        uploadResults.push({
+          fileName: file.data.name,
+          fileId: file.data.id,
+        });
+      } catch (photoError: any) {
+        console.error(`Erro ao enviar foto ${i + 1}:`, photoError?.message || photoError);
+        throw new Error(`Falha ao enviar foto ${i + 1}: ${photoError?.message || 'erro desconhecido'}`);
+      }
     }
 
     return NextResponse.json({
