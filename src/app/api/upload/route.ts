@@ -19,13 +19,42 @@ export async function POST(request: NextRequest) {
     }
 
     // Configurar autenticação com Service Account
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/drive.file'],
-    });
+    let auth;
+
+    // Opção 1: Usar GOOGLE_SERVICE_ACCOUNT_JSON (JSON completo codificado em base64)
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+      try {
+        const jsonString = Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON, 'base64').toString('utf-8');
+        const credentials = JSON.parse(jsonString);
+        auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/drive.file'],
+        });
+      } catch (e) {
+        console.error('Erro ao parsear GOOGLE_SERVICE_ACCOUNT_JSON:', e);
+        throw new Error('Credenciais JSON inválidas');
+      }
+    }
+    // Opção 2: Usar variáveis separadas
+    else {
+      let privateKey = process.env.GOOGLE_PRIVATE_KEY || '';
+
+      // Se a chave contém \n literal (como string), converter para quebra de linha real
+      if (privateKey.includes('\\n')) {
+        privateKey = privateKey.replace(/\\n/g, '\n');
+      }
+
+      // Remover aspas extras que podem vir da variável de ambiente
+      privateKey = privateKey.replace(/^["']|["']$/g, '');
+
+      auth = new google.auth.GoogleAuth({
+        credentials: {
+          client_email: process.env.GOOGLE_CLIENT_EMAIL,
+          private_key: privateKey,
+        },
+        scopes: ['https://www.googleapis.com/auth/drive.file'],
+      });
+    }
 
     const drive = google.drive({ version: 'v3', auth });
 
