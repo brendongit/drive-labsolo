@@ -89,10 +89,29 @@ export async function POST(request: NextRequest) {
       },
       files: uploadResults,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no upload:', error);
+
+    let errorMessage = 'Erro ao fazer upload das fotos';
+    let details = String(error);
+
+    if (error?.message) {
+      details = error.message;
+    }
+
+    if (error?.response?.data?.error) {
+      const driveError = error.response.data.error;
+      details = `${driveError.message} (${driveError.status})`;
+
+      if (driveError.status === 'PERMISSION_DENIED') {
+        errorMessage = 'Sem permissão. Verifique se a pasta foi compartilhada com a Service Account.';
+      } else if (driveError.status === 'NOT_FOUND') {
+        errorMessage = 'Pasta não encontrada. Verifique o PARENT_FOLDER_ID.';
+      }
+    }
+
     return NextResponse.json(
-      { error: 'Erro ao fazer upload das fotos', details: String(error) },
+      { error: errorMessage, details },
       { status: 500 }
     );
   }
