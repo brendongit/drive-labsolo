@@ -58,25 +58,13 @@ export async function POST(request: NextRequest) {
 
     const drive = google.drive({ version: 'v3', auth });
 
-    // Passo A: Criar pasta com nome do serviço
-    const folderMetadata = {
-      name: serviceName,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [process.env.PARENT_FOLDER_ID as string],
-    };
+    const parentFolderId = process.env.PARENT_FOLDER_ID as string;
 
-    const folder = await drive.files.create({
-      requestBody: folderMetadata,
-      fields: 'id, name',
-    });
+    // Gerar timestamp para o lote de fotos
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-    const folderId = folder.data.id;
-
-    if (!folderId) {
-      throw new Error('Falha ao criar pasta no Google Drive');
-    }
-
-    // Passo B: Upload de todas as fotos para a pasta criada
+    // Upload de todas as fotos direto na pasta compartilhada
+    // Nome do arquivo: [NomeServico]_foto_1_[timestamp].jpg
     const uploadResults = [];
 
     for (let i = 0; i < photos.length; i++) {
@@ -88,11 +76,12 @@ export async function POST(request: NextRequest) {
 
         console.log(`Enviando foto ${i + 1}/${photos.length}, tamanho: ${buffer.length} bytes`);
 
-        const fileName = `foto_${i + 1}_${Date.now()}.jpg`;
+        // Nome inclui o serviço para organização
+        const fileName = `[${serviceName}]_foto_${i + 1}_${timestamp}.jpg`;
 
         const fileMetadata = {
           name: fileName,
-          parents: [folderId],
+          parents: [parentFolderId],
         };
 
         const media = {
@@ -121,10 +110,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `${photos.length} foto(s) enviada(s) com sucesso`,
-      folder: {
-        id: folderId,
-        name: serviceName,
-      },
+      serviceName,
       files: uploadResults,
     });
   } catch (error: any) {
