@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
           requestBody: fileMetadata,
           media: media,
           fields: 'id, name',
+          supportsAllDrives: true,
         });
 
         console.log(`Foto ${i + 1} enviada: ${file.data.name}`);
